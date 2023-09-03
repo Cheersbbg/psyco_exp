@@ -1,4 +1,5 @@
-
+import psychopy
+psychopy.useVersion('2022.1.0')
 from psychopy import core, visual, event,gui, sound
 from pylsl import StreamInfo, StreamOutlet
 from PIL import Image, ImageChops
@@ -20,14 +21,13 @@ import queue
 import pickle
 import csv
 
-
+testing_with_wifi = False
 shared_queue=queue.Queue(maxsize=1)
 now = datetime.datetime.now()
 
 exp_running=True
 
 import time
-from pyOpenBCI import OpenBCICyton
 from pylsl import StreamInfo, StreamOutlet
 
 #Crown-215
@@ -112,32 +112,39 @@ def main():
     numexp=20
     numrest=1
     exp_running = True
+
+    
    
-    #Set up LabStreamingLayer stream.
-    print("looking for streams")
-    streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) #Crown-215
+   
+    if testing_with_wifi == True:
+         #Set up LabStreamingLayer stream.
+        print("looking for streams")
+        #streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) #Crown-215
+        streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
 
-    #streams_AUX=pylsl.resolve_byprop("name", "openbci_aux",timeout= 5)
 
-    if len(streams_EEG) == 0:
-        print("Could not find stream on the network.")
-        return
+        #streams_AUX=pylsl.resolve_byprop("name", "openbci_aux",timeout= 5)
 
-    eeg_inlet = pylsl.StreamInlet(streams_EEG[0])
-    #aux_inlet =  pylsl.StreamInlet(streams_AUX[0])
+        if len(streams_EEG) == 0:
+            print("Could not find stream on the network.")
+            return
+            
 
-    sample, timestamp = eeg_inlet.pull_sample()
-    print(sample, timestamp)
+        eeg_inlet = pylsl.StreamInlet(streams_EEG[0])
+        #aux_inlet =  pylsl.StreamInlet(streams_AUX[0])
 
-    #Get the sampling rate of the EEG LSL stream
-    eeg_sample_rate = int(streams_EEG[0].nominal_srate())
+        sample, timestamp = eeg_inlet.pull_sample()
+        print(sample, timestamp)
 
-    # Define the duration of the EEG and AUX data to save in seconds
-    duration = numsecs+numrest
-    print(eeg_sample_rate)
+        #Get the sampling rate of the EEG LSL stream
+        eeg_sample_rate = int(streams_EEG[0].nominal_srate())
 
-    # Define the number of samples to save
-    eeg_num_samples = int(duration * eeg_sample_rate)
+        # Define the duration of the EEG and AUX data to save in seconds
+        duration = numsecs+numrest
+        print(eeg_sample_rate)
+
+        # Define the number of samples to save
+        eeg_num_samples = int(duration * eeg_sample_rate)
     #aux_num_samples = int(duration * aux_sample_rate)
 
     # Create an outlet for the second stream
