@@ -1,0 +1,13 @@
+psychopy
+pylsl
+Pillow
+pathlib
+natsort
+numpy
+opencv-python
+zipfile36
+pyls-sdk
+pylsl
+threading
+queue
+pickle-mixin

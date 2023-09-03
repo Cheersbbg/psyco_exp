@@ -1,5 +1,7 @@
-
-from psychopy import core, visual, event,gui, sound
+import psychopy
+psychopy.useVersion('2022.1.0')
+from psychopy import visual, core, event
+from psychopy import core, visual, sound
 from pylsl import StreamInfo, StreamOutlet
 from PIL import Image, ImageChops
 from pathlib import Path
@@ -28,8 +30,8 @@ now = datetime.datetime.now()
 exp_running=True
 
 import time
-from pyOpenBCI import OpenBCICyton
-from pylsl import StreamInfo, StreamOutlet
+# from pyOpenBCI import OpenBCICyton
+# from pylsl import StreamInfo, StreamOutlet
 
 #Crown-215
 beep1 = sound.Sound(
@@ -126,7 +128,8 @@ def main():
    
     #Set up LabStreamingLayer stream.
     print("looking for streams")
-    streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) #Crown-215
+    #streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) 
+    streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
 
     #streams_AUX=pylsl.resolve_byprop("name", "openbci_aux",timeout= 5)
 
