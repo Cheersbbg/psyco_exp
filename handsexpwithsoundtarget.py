@@ -1,5 +1,6 @@
 import psychopy
 psychopy.useVersion('2022.1.0')
+# import psychtoolbox as ptb
 from psychopy import core, visual, event,gui, sound
 from pylsl import StreamInfo, StreamOutlet
 from PIL import Image, ImageChops
@@ -21,7 +22,7 @@ import queue
 import pickle
 import csv
 
-testing_with_wifi = False
+testing_with_wifi = True
 shared_queue=queue.Queue(maxsize=1)
 now = datetime.datetime.now()
 
@@ -109,7 +110,7 @@ def main():
 
     # experiment information 
     numsecs=2
-    numexp=20
+    numexp=1
     numrest=1
     exp_running = True
 
@@ -258,7 +259,6 @@ def main():
 
             print("one task done")
     
-
     eeg_thread = threading.Thread(target=runstream, args=(eeg_inlet,eeg_num_samples*len(permu_list),numsecs))
     eeg_thread.start()
 
