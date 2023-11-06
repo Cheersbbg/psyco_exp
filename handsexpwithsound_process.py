@@ -128,8 +128,8 @@ def main():
    
     #Set up LabStreamingLayer stream.
     print("looking for streams")
-    #streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) 
-    streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
+    streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) 
+    #streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
 
     #streams_AUX=pylsl.resolve_byprop("name", "openbci_aux",timeout= 5)
 

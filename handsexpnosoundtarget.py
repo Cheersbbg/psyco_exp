@@ -20,6 +20,7 @@ import threading
 import queue
 import pickle
 import csv
+from expfunctions import *
 
 testing_with_wifi = True
 shared_queue=queue.Queue(maxsize=1)
@@ -36,75 +37,6 @@ beep1 = sound.Sound(
     volume = 0.5)
 
 
-# Zip the files from given directory that matches the filter
-def zipFilesInDir(dirName, zipFileName, filter):
- # create a ZipFile object
-    with ZipFile(zipFileName, 'w') as zipObj:
-    # Iterate over all the files directory
-        for folderName, subfolders, filenames in os.walk(dirName):
-            for filename in filenames:
-                if filter(filename):
-                   # create complete filepath of file in directory
-                    filePath = os.path.join(folderName, filename)
-                   # Add file to zip
-                    zipObj.write(filePath, basename(filePath))
-
-def custom_experiement(listoflist, inclusive, newfunction):
-    contours = np.load('handcountours.npy', allow_pickle=True)
-    template = cv2.imread('twohands2.png')
-    inv_img = ImageChops.invert(Image.fromarray(template)).convert("RGBA")
-    #generate map
-    background = np.zeros( (600,800) ) 
-    if not os.path.exists(os.getcwd()+"/"+newfunction):
-        exp_path=os.makedirs(os.getcwd()+"/"+newfunction+"/exp")
-        map_path=os.makedirs(os.getcwd()+"/"+newfunction+"/map")
-    else:
-        exp_path=os.getcwd()+"/"+newfunction+"/exp"
-        map_path=os.getcwd()+"/"+newfunction+"/map"
-
-
-    for key,list in enumerate (listoflist):
-        if inclusive==False:
-            background = np.zeros( (600,800) ) 
-        for cont in list:
-            cv2.drawContours(background, [contours[cont]],0,color=(255, 255, 255),thickness=-1)
-        newp= Image.fromarray(background)
-        new_p = newp.convert("L")
-        new_p.save(map_path+'/image'+str(key)+'.png')
-    
-        #generate exp gifs   
-        temp = cv2.imread(map_path+'/image'+str(key)+'.png')
-        exp_tem = inv_img.copy()
-        b, g, r = cv2.split(np.array(temp))
-        np.multiply(b, 2, out=b, casting="unsafe")
-        np.multiply(g, 0, out=g, casting="unsafe")
-        np.multiply(r, 2, out=r, casting="unsafe")
-        after = cv2.merge([b, g, r])
-        after = ImageChops.invert(Image.fromarray(after)).convert("RGBA")
-        alphaBlended = Image.blend(after, exp_tem, alpha=0.6)
-        alphaBlended.save(exp_path+'/image'+str(key)+'.png')
-        
-    return exp_path,map_path
- 
-            #zipFilesInDir(os.getcwd()+"/custofdatamexp", 'customexp_' + str(now.strftime("%d_%m_%H_%M_%S"))+'.zip', lambda name : 'image' in name)
-            #zipFilesInDir(os.getcwd()+"/customap", 'customap_' + str(now.strftime("%d_%m_%H_%M_%S")) +'.zip', lambda name : 'image' in name)
-       
-
-def getpicpaths(path):
-    path_list=[]
-    for filename in os.listdir(path):
-        if "image" in filename:
-            path_list.append(path+"/"+filename)
-    path_list=natsorted(path_list)
-    return path_list
-    
-def getstims(path_lst,window):
-    stim_list=[]
-    for item in path_lst:
-        stim_list.append(visual.ImageStim(win=window, image=str(item), pos = [0,0]))
-    return stim_list
-
-
 def main():
 
     # experiment information 
@@ -117,8 +49,8 @@ def main():
     if testing_with_wifi == True:
          #Set up LabStreamingLayer stream.
         print("looking for streams")
-        #streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) #Crown-215
-        streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
+        streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) #Crown-215
+        #streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
 
 
         #streams_AUX=pylsl.resolve_byprop("name", "openbci_aux",timeout= 5)
@@ -224,7 +156,7 @@ def main():
                 print("idx", idx)
                 stim = stim_list[idx]
                 stim.draw()
-                trial_multiplier = random.randint(1, trial_interval)  # This will give you a number between 1 and 8
+                trial_multiplier = 2 #random.randint(1, trial_interval)  # This will give you a number between 1 and 8
                 numsecs = trial_multiplier * 0.5 
 
                 win.flip()
@@ -253,15 +185,17 @@ def main():
                 #passtime.sleep(numsecs)  # Display picture for 3 second.
 
                 if hasbreak == True:
+                    break_multiplier = random.randint(1, break_interval) 
                     system_time = time.time()  # Get the current system time
                     stim_timestamp = system_time - time_diff  # Calculate the stimulus onset time using the 
-                    shared_queue.put([100,stim_timestamp,break_interval])
+
+                    shared_queue.put([100,stim_timestamp,break_multiplier])
                     emptystim.draw() 
                     win.flip()
-                    # break_multiplier = random.randint(1, break_interval)  # This will give you a number between 1 and 8
-                    # breaktime = break_multiplier * 0.5 
+                     # This will give you a number between 1 and 8
+                    breaktime = break_multiplier * 0.5 
                      # rest for 1 seconds between trials 
-                    core.wait(break_interval)
+                    core.wait(breaktime)
                     #time.sleep(0.1)
 
             print("get to save")
@@ -270,18 +204,20 @@ def main():
             shared_queue.put([200,stim_timestamp])
             print("one task done")
             core.wait(2)
-    
-    eeg_thread = threading.Thread(target=runstream, args=(eeg_inlet,eeg_num_samples*len(permu_list)))
-    eeg_thread.start()
+    if testing_with_wifi:
+        eeg_thread = threading.Thread(target=runstream, args=(eeg_inlet,eeg_num_samples*len(permu_list)))
+        eeg_thread.start()
 
-    
 
     for i, stim_list in enumerate(stim_matrix):
-        sample, timestamp = eeg_inlet.pull_sample()
-        start_time=time.time()
-        eeg_timestamp = timestamp
-        time_diff = start_time - eeg_timestamp
-        run_exp(exp_names[i], stim_list, numexp=numexp, win=win, shuffle=True,hasbreak=True,emptystim=emptystim,timedif=time_diff,break_interval=1,trial_interval=4)
+        if testing_with_wifi:
+            sample, timestamp = eeg_inlet.pull_sample()
+            start_time=time.time()
+            eeg_timestamp = timestamp
+            time_diff = start_time - eeg_timestamp
+        else:
+            time_diff = 0
+        run_exp(exp_names[i], stim_list, numexp=numexp, win=win, shuffle=True,hasbreak=True,emptystim=emptystim,timedif=time_diff,break_interval=3,trial_interval=4)
         print(i, "experiment")
         core.wait(5)
     
@@ -349,8 +285,10 @@ def main():
 #             print("saved one, should continue")
 
 
-def runstream(eeg_inlet, num_samples, batch_size=2,exp_name="single"):
+def runstream(eeg_inlet, num_samples, batch_size=1,exp_name="singleemg"):
     global exp_running
+    if eeg_inlet is None:  # Do nothing if there's no EEG inlet (i.e., in testing mode)
+        return
 
     # Initialize variables
     currentmarker = 0
