@@ -39,12 +39,143 @@ paradigms=['go','nogo', 'freehand']
 #     value = 'A', secs = 0.2,
 #     volume = 0.5)
 
+if True:
+    from brainflow.board_shim import BoardShim, BrainFlowInputParams
+    from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, local_clock
+    from serial import Serial
+    from threading import Thread, Event
+    import sys
+    CYTON_BOARD_ID = 0
+    BAUD_RATE = 115200
+
+    ANALOGUE_MODE = '/2'
+    def find_openbci_port():
+        """Finds the port to which the Cyton Dongle is connected to."""
+        # Find serial port names per OS
+        if sys.platform.startswith('win'):
+            ports = ['COM%s' % (i + 1) for i in range(256)]
+        elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+            ports = glob.glob('/dev/ttyUSB*')
+        elif sys.platform.startswith('darwin'):
+            ports = glob.glob('/dev/cu.usbserial*')
+        else:
+            raise EnvironmentError('Error finding ports on your operating system')
+
+        openbci_port = ''
+        for port in ports:
+            try:
+                s = Serial(port=port, baudrate=BAUD_RATE, timeout=None)
+                s.write(b'v')
+                line = ''
+                time.sleep(2)
+                if s.inWaiting():
+                    line = ''
+                    c = ''
+                    while '$$$' not in line:
+                        c = s.read().decode('utf-8', errors='replace')
+                        line += c
+                    if 'OpenBCI' in line:
+                        openbci_port = port
+                s.close()
+            except (OSError, serial.SerialException):
+                pass
+        if openbci_port == '':
+            raise OSError('Cannot find OpenBCI port.')
+        else:
+            return openbci_port
+    def start_cyton_lsl():
+        """ 'start streaming cyton to lsl'
+        Stream EEG and analogue(AUX) data from Cyton onto the Lab Streaming 
+        Layer(LSL).
+        (LSL is commonly used in EEG labs for different devices to push and pull
+        data from a shared network layer to ensure good synchronization and timing
+        across all devices)
+
+        Returns
+        -------
+        board : board instance for the amplifier board, in this case OpenBCI Cyton
+        push_thread : the thread instance that pushes data onto the LSL constantly
+
+        Note
+        ----
+        To properly end the push_thread, call board.stop_stream(). If this isn't done,
+        the program could freeze or show error messages. Do not lose the board instance
+
+        Examples
+        --------
+        >>> board, _ = start_lsl() # to start pushing onto lsl
+        ...
+        >>> board.stop_streaming() # to stop pushing onto lsl
+        """
+        # print("Creating LSL stream for EEG. \nName: OpenBCIEEG\nID: OpenBCItestEEG\n")
+        if CYTON_BOARD_ID != 0:
+            info_eeg = StreamInfo('OpenBCIEEG', 'EEG', 16, 250, 'float32', 'OpenBCItestEEG')
+        else:
+            info_eeg = StreamInfo('OpenBCIEEG', 'EEG', 8, 250, 'float32', 'OpenBCItestEEG')
+        print(BoardShim.get_board_descr(CYTON_BOARD_ID))
+        
+        # print("Creating LSL stream for AUX. \nName: OpenBCIAUX\nID: OpenBCItestEEG\n")
+        info_aux = StreamInfo('OpenBCIAUX', 'AUX', 3, 250, 'float32', 'OpenBCItestAUX')
+
+        outlet_eeg = StreamOutlet(info_eeg)
+        outlet_aux = StreamOutlet(info_aux)
+
+        params = BrainFlowInputParams()
+        if CYTON_BOARD_ID != 6:
+            params.serial_port = find_openbci_port()
+        elif CYTON_BOARD_ID == 6:
+            params.ip_port = 9000
+        board = BoardShim(CYTON_BOARD_ID, params)
+        board.prepare_session()
+        res_query = board.config_board('/0')
+        print(res_query)
+        res_query = board.config_board('//')
+        print(res_query)
+        res_query = board.config_board(ANALOGUE_MODE)
+        print(res_query)
+        board.start_stream(45000)
+        # time.sleep(1)
+        stop_event = Event()
+        def push_sample():
+            start_time = local_clock()
+            sent_eeg = 0
+            sent_aux = 0
+            while not stop_event.is_set():
+                elapsed_time = local_clock() - start_time
+                data_from_board = board.get_board_data()
+
+                required_eeg_samples = int(250 * elapsed_time) - sent_eeg
+                eeg_data = data_from_board[board.get_eeg_channels(CYTON_BOARD_ID)]
+                # print(data_from_board[BoardShim.get_timestamp_channel(CYTON_BOARD_ID)])
+                # print(BoardShim.get_sampling_rate(CYTON_BOARD_ID))
+                datachunk = []
+                for i in range(len(eeg_data[0])):
+                    datachunk.append(eeg_data[:,i].tolist())
+                stamp = local_clock()
+                outlet_eeg.push_chunk(datachunk, stamp)
+                sent_eeg += required_eeg_samples
+                
+                required_aux_samples = int(250 * elapsed_time) - sent_aux
+                aux_data = data_from_board[board.get_analog_channels(CYTON_BOARD_ID)]
+                datachunk = []
+                for i in range(len(aux_data[0])):
+                    datachunk.append(aux_data[:,i].tolist())
+                stamp = local_clock()
+                outlet_aux.push_chunk(datachunk, stamp)
+                sent_aux += required_aux_samples
+
+                # time.sleep(0.02) # 20 ms
+
+        push_thread = Thread(target=push_sample)
+        push_thread.start()
+        return board, stop_event
+    board, stop_cyton = start_cyton_lsl()
 
 def main():
 
     # experiment information 
     numsecs=2
-    numexp=1
+    numexp=5
     numrest=1
     exp_running = True
 
@@ -52,9 +183,12 @@ def main():
     if testing_with_wifi == True:
          #Set up LabStreamingLayer stream.
         print("looking for streams")
-        streams_EEG= pylsl.resolve_byprop("name", "openbci_eeg",timeout=5) #Crown-215
-        #streams_EEG= pylsl.resolve_byprop("name", "Crown-215",timeout=5)
+        streams_EEG= pylsl.resolve_stream("type", "EEG") #Crown-215 
+        
+        streams_aux= pylsl.resolve_stream("type", "AUX")
 
+        print(streams_EEG)
+        print(streams_aux)
 
         #streams_AUX=pylsl.resolve_byprop("name", "openbci_aux",timeout= 5)
 
@@ -63,10 +197,13 @@ def main():
             return
             
         eeg_inlet = pylsl.StreamInlet(streams_EEG[0])
-        #aux_inlet =  pylsl.StreamInlet(streams_AUX[0])
+        aux_inlet =  pylsl.StreamInlet(streams_aux[0])
 
         sample, timestamp = eeg_inlet.pull_sample()
         print(sample, timestamp)
+        sample, timestamp = aux_inlet.pull_sample()
+        print(sample, timestamp)
+        print('a')
 
         #Get the sampling rate of the EEG LSL stream
         eeg_sample_rate = int(streams_EEG[0].nominal_srate())
@@ -264,6 +401,7 @@ def main():
 
                 win.flip()
                 core.wait(1.5) #visual presentation seconds
+                # core.wait(0.1)
 
                 stim2.draw() # background while doing it
                 whiterect.draw()
@@ -274,6 +412,7 @@ def main():
 
                 win.flip()
                 core.wait(1.5) #random interval seconds
+                # core.wait(0.1)
                 
                 if hasbreak == True:
                     break_multiplier = random.randint(3, 5) 
@@ -298,7 +437,7 @@ def main():
         core.wait(2)
 
     if testing_with_wifi:
-        eeg_thread = threading.Thread(target=runstream, args=(eeg_inlet,eeg_num_samples*len(permu_list)))
+        eeg_thread = threading.Thread(target=runstream, args=(eeg_inlet,aux_inlet, eeg_num_samples*len(permu_list)))
         eeg_thread.start()
 
     run_exp(stim_matrix, numexp, win, emptystim=emptystim, hasbreak=True, break_interval=3 ,trial_interval=8, whitestim=whitestim, whiterect = whiterect, blackrect = blackrect)
@@ -312,7 +451,7 @@ def main():
     core.quit()
 
 
-def runstream(eeg_inlet, num_samples, batch_size=1,exp_name="nogotest"):
+def runstream(eeg_inlet, aux_inlet, num_samples, batch_size=1,exp_name="nogoactual2_eeg"):
     global exp_running
     if eeg_inlet is None:  # Do nothing if there's no EEG inlet (i.e., in testing mode)
         return
@@ -320,6 +459,7 @@ def runstream(eeg_inlet, num_samples, batch_size=1,exp_name="nogotest"):
     # Initialize variables
     currentmarker = 0
     data_batch = []
+    aux_batch = []
     counter = 0
     stim_timestamps=[]
     eeg_timestamps = []
@@ -348,18 +488,24 @@ def runstream(eeg_inlet, num_samples, batch_size=1,exp_name="nogotest"):
             # Read a chunk of EEG and AUX data
             eeg_chunk, timestamp = eeg_inlet.pull_chunk(max_samples=num_samples + 150)
 
-            #aux_chunk, aux_timestamp = aux_inlet.pull_chunk(max_samples=num_samples + 150)
+            aux_chunk, aux_timestamp = aux_inlet.pull_chunk(max_samples=num_samples + 150)
 
             filename = filename_template.format(exp_name)
+            print(eeg_chunk, aux_chunk)
 
             data = np.hstack([
                 np.array(timestamp).reshape(-1, 1),
                 eeg_chunk
-                #aux_chunk
+            ])
+
+            aux_data = np.hstack([
+                np.array(aux_timestamp).reshape(-1, 1),
+                aux_chunk
             ])
 
             # Add to data batch
             data_batch.append(data)
+            aux_batch.append(aux_data)
             counter += 1
 
             if counter >= batch_size:
@@ -367,14 +513,22 @@ def runstream(eeg_inlet, num_samples, batch_size=1,exp_name="nogotest"):
                 with open(filename, file_mode) as f:
                     for batch in data_batch:
                         np.savetxt(f, batch, delimiter=",", fmt=['%f'] + ['%f'] * 8) #add 3 more channels
+
                 with open("stimulus "+exp_name, 'ab') as f:
                     marker_array = np.array(tempmarker).reshape(-1, 1)
                     stim_timestamps_array = np.array(stim_timestamps).reshape(-1, 1)
                     durations_array = np.array(durations).reshape(-1, 1)
                     stimulus_data = np.hstack([stim_timestamps_array,marker_array, durations_array])
                     np.savetxt(f, stimulus_data, delimiter=",", fmt=['%f', '%d', '%d'])
+
+                with open("aux_"+exp_name, 'ab') as f:
+                    for batch in aux_batch:
+                        np.savetxt(f, batch, delimiter=",", fmt=['%f'] + ['%f'] * 3)
+
+
                         
                 data_batch = []
+                aux_batch = []
                 stim_timestamps=[]
                 tempmarker = []
                 durations = []
