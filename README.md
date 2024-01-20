@@ -3,3 +3,4 @@ The citation for the original NN is in the subfolder.
 
 **Successful Instances of Aggregation from Sampler**
 ![successful instances from sampler](visuals/demo_memorymatrix.png)
+
