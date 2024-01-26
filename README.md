@@ -4,7 +4,7 @@ The citation for the original NN is in the subfolder.
 **Successful Instances of Aggregation from Sampler**
 ![successful instances from sampler](visuals/demo_memorymatrix.png)
 
-**From Aggregation of Successful Paths to Generate One Hop Sequence for good representation of Node 10** These are currently cherry-picked from high scoring samples for demostration purpose, longer sequence generation from model is WIP, refer to `find_universal_path_from_subspace` for how to use a symmetric, proximity matrix(created from annotation in ![interface repo]("https://github.com/Cheersbbg/Custom-BCI-Experiment-Generator") to compute universal path)
+**From Aggregation of Successful Paths to Generate One Hop Sequence for good representation of Node 10** These are currently cherry-picked from high scoring samples for demostration purpose, longer sequence generation from model is WIP, refer to `find_universal_path_from_subspace` for how to use a symmetric, proximity matrix(created from annotation in ![interface repo](https://github.com/Cheersbbg/Custom-BCI-Experiment-Generator) to compute universal path)
 
 ![samples for node 10](https://github.com/Cheersbbg/psyco_exp/blob/main/gooduniversalpath/4768_node_10%5B10%2C%201%2C%201%5D.gif)
 
