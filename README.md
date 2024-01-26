@@ -4,3 +4,11 @@ The citation for the original NN is in the subfolder.
 **Successful Instances of Aggregation from Sampler**
 ![successful instances from sampler](visuals/demo_memorymatrix.png)
 
+**From Aggregation of Successful Paths to Generate Sequence for good representation of Node 10**(currently cherry-picked for demostration purpose)
+
+![Samples for node 10] (gooduniversalpath/22489_node_10[10, 2, 2].gif)
+
+![Samples for node 10] (gooduniversalpath/4699_node_10[10, 10, 9].gif)
+
+![Samples for node 10] (gooduniversalpath/1373_node_10[10, 6, 6].gif)
+
