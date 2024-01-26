@@ -6,9 +6,9 @@ The citation for the original NN is in the subfolder.
 
 **From Aggregation of Successful Paths to Generate Sequence for good representation of Node 10**(currently cherry-picked for demostration purpose)
 
-![Samples for node 10] (gooduniversalpath/22489_node_10[10, 2, 2].gif)
+![samples for node 10](https://github.com/Cheersbbg/psyco_exp/tree/main/gooduniversalpath/22489_node_10[10, 2, 2].gif)
 
-![Samples for node 10] (gooduniversalpath/4699_node_10[10, 10, 9].gif)
+![samples for node 10](https://github.com/Cheersbbg/psyco_exp/tree/main/gooduniversalpath/4699_node_10[10, 10, 9].gif)
 
-![Samples for node 10] (gooduniversalpath/1373_node_10[10, 6, 6].gif)
+![samples for node 10](https://github.com/Cheersbbg/psyco_exp/tree/main/gooduniversalpath/1373_node_10[10, 6, 6].gif)
 
